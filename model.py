@@ -99,19 +99,22 @@ class Model:
         fm21 = f.relu(cnn.Conv2d(fm5, self.kernels[21]))
         fm22 = f.relu(cnn.Conv2d(fm6, self.kernels[22]))
         fm23 = f.relu(cnn.Conv2d(fm7, self.kernels[23]))
+
         fm24 = f.relu(cnn.Conv2d(fm8, self.kernels[24]))
         fm25 = f.relu(cnn.Conv2d(fm9, self.kernels[25]))
         fm26 = f.relu(cnn.Conv2d(fm10, self.kernels[26]))
         fm27 = f.relu(cnn.Conv2d(fm11, self.kernels[27]))
+
         fm28 = f.relu(cnn.Conv2d(fm12, self.kernels[28]))
         fm29 = f.relu(cnn.Conv2d(fm13, self.kernels[29]))
         fm30 = f.relu(cnn.Conv2d(fm14, self.kernels[30]))
         fm31 = f.relu(cnn.Conv2d(fm15, self.kernels[31]))
+
         fm32 = f.relu(cnn.Conv2d(fm16, self.kernels[32]))
         fm33 = f.relu(cnn.Conv2d(fm17, self.kernels[33]))
         fm34 = f.relu(cnn.Conv2d(fm18, self.kernels[34]))
         fm35 = f.relu(cnn.Conv2d(fm19, self.kernels[35]))
-    
+
         feature_maps.extend([fm0, fm1, fm2, fm3, fm4, fm5, fm6, fm7, fm8, fm9, fm10, fm11, fm12, fm13, fm14, fm15, fm16, fm17, fm18, fm19, 
                                   fm20, fm21, fm22, fm23, fm24, fm25, fm26, fm27, fm28, fm29, fm30, fm31, fm32, fm33, fm34, fm35])
 
@@ -130,13 +133,26 @@ class Model:
         
         return dense_out, (self.kernels, self.weights, feature_maps, dense_layers)
 
-    
     """ backpropagation """
     def backward(self, prediction, target, parameters, lr=0.1):
         kernels, weights, feature_maps, dense_layers = parameters
-        
-        loss = f.MSE(target, prediction)
 
-        """dense_layer_3_delta = f.MSE(y_true, y_prediction, deriv=True, x=dense_layers[3], activation_function=f.sigmoid)
-        dense_layer_2_delta = f.MSE(dense_layer_3_delta, 0, deriv=True, x=dense_layers[2], activation_function=f.relu)
-        dense_layer_1_delta = f.MSE(dense_layer_2_delta, 0, deriv=True, x=dense_layers[1], activation_function=f.relu)"""
+        dense_out_delta = f.MSE(target, prediction, deriv=(True, f.sigmoid(dense_layers[3], deriv=True)))
+        
+        dense_h1_loss = np.dot(dense_out_delta.T, weights[2])
+        dense_h1_delta = dense_h1_loss.T * f.relu(dense_layers[2], deriv=True)
+
+        dense_h0_loss = np.dot(dense_h1_loss, weights[1])
+        dense_h0_delta = dense_h0_loss.T * f.relu(dense_layers[1], deriv=True)
+
+        self.weights[0] -= lr * np.dot(dense_layers[0], dense_h0_delta.T).T
+        self.weights[1] -= lr * np.dot(dense_layers[1], dense_h1_delta.T).T
+        self.weights[2] -= lr * np.dot(dense_layers[2], dense_out_delta.T).T
+
+        # 16 x (3, 3) fms
+
+        # 16 x (11, 11) fms
+
+        # 4 x (26, 26) fms
+        
+

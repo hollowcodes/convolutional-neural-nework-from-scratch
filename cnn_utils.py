@@ -122,11 +122,13 @@ class Function:
 			return s * (1 - s)
 		return s
 
-	def MSE(self, y_true, y_prediction,  deriv=False, x=None, activation_function=None):
-		""" mean-squared-error loss function """
-		
-		if deriv:
-			return 2 * np.mean(np.subtract(y_true - y_prediction)) * activation_function(x, deriv=True)
+	def MSE(self, y_true, y_prediction, deriv=(False, None)):
+		""" mean-squared-error loss function 
+			(deriv[1] is the derivitive of the activation function for the chain rule)
+		"""
+
+		if deriv[0]:
+			return 2 * np.subtract(y_true, y_prediction) * -deriv[1]
 		return np.mean(np.square(np.subtract(y_true, y_prediction)))
 
 

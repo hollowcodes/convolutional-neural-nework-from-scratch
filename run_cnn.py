@@ -33,9 +33,10 @@ class Run:
 
                 prediction, parameters = self.model.forward(sample)
                 
+                loss = f.MSE(target, prediction)
+
                 self.model.backward(prediction, target, parameters, lr=self.lr)
 
-                loss = 0
                 epoch_loss.append(loss)
 
             val_acc = round(self.evaluate(validation_set), 4)
@@ -50,7 +51,7 @@ class Run:
             sample = dataset[idx][0]
             target = dataset[idx][1]
 
-            prediction, _ = self.model.forward(sample)
+            prediction, _ = self.model.forward(sample, train=False)
 
             same = True
             for i in range(0, 2):
@@ -61,7 +62,7 @@ class Run:
             if same:
                 correct += 1
         
-        return total / correct
+        return correct / total
 
     """ test neural network """
     def test(self, test_set):
@@ -70,7 +71,10 @@ class Run:
 
 
 if __name__ == "__main__":
-    run = Run(epochs=3, lr=1e-2, decay_rate=1e-2, dropout_chance=0.5)
+    run = Run(epochs=20, 
+              lr=1e-2, 
+              decay_rate=1e-2, 
+              dropout_chance=0.5)
 
     dataset = load_dataset("dataset/dataset.npy")
     train_set, test_set, validation_set = dataset[0], dataset[1], dataset[2]
