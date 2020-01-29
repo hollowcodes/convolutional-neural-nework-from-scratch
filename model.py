@@ -142,7 +142,7 @@ class Model:
         dense_h1_loss = np.dot(dense_out_delta.T, weights[2])
         dense_h1_delta = dense_h1_loss.T * f.relu(dense_layers[2], deriv=True)
 
-        dense_h0_loss = np.dot(dense_h1_loss, weights[1])
+        dense_h0_loss = np.dot(dense_h1_delta.T, weights[1])
         dense_h0_delta = dense_h0_loss.T * f.relu(dense_layers[1], deriv=True)
 
         self.weights[0] -= lr * np.dot(dense_layers[0], dense_h0_delta.T).T
@@ -150,9 +150,70 @@ class Model:
         self.weights[2] -= lr * np.dot(dense_layers[2], dense_out_delta.T).T
 
         # 16 x (3, 3) fms
+        conv_layer_3_loss = np.mean(np.dot(dense_h0_delta.T, weights[0]))
+        conv_layer_3_delta = conv_layer_3_loss * f.relu(np.mean(feature_maps[20:], axis=0), deriv=True)
 
-        # 16 x (11, 11) fms
+        self.kernels[35] -= lr * conv_layer_3_loss * f.relu(feature_maps[35], deriv=True)
+        self.kernels[34] -= lr * conv_layer_3_loss * f.relu(feature_maps[34], deriv=True)
+        self.kernels[33] -= lr * conv_layer_3_loss * f.relu(feature_maps[33], deriv=True)
+        self.kernels[32] -= lr * conv_layer_3_loss * f.relu(feature_maps[32], deriv=True)
+        self.kernels[31] -= lr * conv_layer_3_loss * f.relu(feature_maps[31], deriv=True)
+        self.kernels[30] -= lr * conv_layer_3_loss * f.relu(feature_maps[30], deriv=True)
+        self.kernels[29] -= lr * conv_layer_3_loss * f.relu(feature_maps[29], deriv=True)
+        self.kernels[28] -= lr * conv_layer_3_loss * f.relu(feature_maps[28], deriv=True)
+        self.kernels[27] -= lr * conv_layer_3_loss * f.relu(feature_maps[27], deriv=True)
+        self.kernels[26] -= lr * conv_layer_3_loss * f.relu(feature_maps[26], deriv=True)
+        self.kernels[25] -= lr * conv_layer_3_loss * f.relu(feature_maps[25], deriv=True)
+        self.kernels[24] -= lr * conv_layer_3_loss * f.relu(feature_maps[24], deriv=True)
+        self.kernels[23] -= lr * conv_layer_3_loss * f.relu(feature_maps[23], deriv=True)
+        self.kernels[22] -= lr * conv_layer_3_loss * f.relu(feature_maps[22], deriv=True)
+        self.kernels[21] -= lr * conv_layer_3_loss * f.relu(feature_maps[21], deriv=True)
+        self.kernels[20] -= lr * conv_layer_3_loss * f.relu(feature_maps[20], deriv=True)
 
-        # 4 x (26, 26) fms
+        conv_layer_2_loss = np.mean(np.dot(conv_layer_3_delta, np.mean(kernels[20:], axis=0)))
+        conv_layer_2_delta = conv_layer_2_loss * np.mean(f.relu(np.mean(feature_maps[4:20], axis=0), deriv=True))
         
+        self.kernels[19] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[19], deriv=True))
+        self.kernels[18] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[18], deriv=True))
+        self.kernels[17] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[17], deriv=True))
+        self.kernels[16] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[16], deriv=True))
+        self.kernels[15] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[15], deriv=True))
+        self.kernels[14] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[14], deriv=True))
+        self.kernels[13] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[13], deriv=True))
+        self.kernels[12] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[12], deriv=True))
+        self.kernels[11] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[11], deriv=True))
+        self.kernels[10] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[10], deriv=True))
+        self.kernels[9] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[9], deriv=True))
+        self.kernels[8] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[8], deriv=True))
+        self.kernels[7] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[7], deriv=True))
+        self.kernels[6] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[6], deriv=True))
+        self.kernels[5] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[5], deriv=True))
+        self.kernels[4] -= lr * conv_layer_2_loss * np.mean(f.relu(feature_maps[4], deriv=True))
 
+        conv_layer_1_loss = np.mean(np.dot(conv_layer_2_delta, np.mean(kernels[4:], axis=0)))
+        conv_layer_1_delta = conv_layer_2_loss * np.mean(f.relu(np.mean(feature_maps[0:4], axis=0), deriv=True))
+
+        self.kernels[3] -= lr * conv_layer_1_loss * np.mean(f.relu(feature_maps[3], deriv=True))
+        self.kernels[2] -= lr * conv_layer_1_loss * np.mean(f.relu(feature_maps[2], deriv=True))
+        self.kernels[1] -= lr * conv_layer_1_loss * np.mean(f.relu(feature_maps[1], deriv=True))
+        self.kernels[0] -= lr * conv_layer_1_loss * np.mean(f.relu(feature_maps[0], deriv=True))
+
+        """for i in range(len(self.kernels)):
+            self.kernels[i] = self._gradient_clipping(self.kernels[i], theshold=1)
+                
+
+        print(self.kernels[35], "\n.", self.kernels[19], "\n.", self.kernels[3])
+
+    def _gradient_clipping(self, matrix, theshold=1):
+        sum_ = 0
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                sum_ += pow(matrix[i][j], 2)
+        norm = np.sqrt(sum_)
+
+        for i in range(len(matrix)):
+            for j in range(len(matrix[0])):
+                if matrix[i][j] > theshold:
+                    matrix[i][j] = matrix[i][j] * 1 / norm
+        
+        return matrix"""
