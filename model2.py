@@ -12,9 +12,9 @@ class Model:
         self.dropout_chance = dropout_chance
 
         self.kernels, self.weights = cnn.CreateParameters(
-            kernels=[(3, 3) for _ in range(36)],
-            weight_matrices=[(56, 200),
-                            (3, 56)]
+            kernels=[(3, 3) for _ in range(6)],
+            weight_matrices=[(60, 100),
+                            (3, 60)]
         )
 
     """ forward pass """
@@ -27,45 +27,31 @@ class Model:
             self.dropout_chance = 0.0
 
         """ convolutional-layer 1 feature-map shape: (26, 26) """
-        fm0 = f.relu(cnn.Conv2d(x, self.kernels[0].T.T))
-        fm1 = f.relu(cnn.Conv2d(x, self.kernels[1].T.T))
-        fm2 = f.relu(cnn.Conv2d(x, self.kernels[2].T.T))
-        fm3 = f.relu(cnn.Conv2d(x, self.kernels[3].T.T))
+        fm0 = f.relu(cnn.Conv2d(x, self.kernels[0]))
+        fm1 = f.relu(cnn.Conv2d(x, self.kernels[1]))
 
         """ maxpool-layer 1 feature-map shape: (13, 13) """
         fm0_ = cnn.MaxPool2d(fm0, pooling_size=2)
         fm1_ = cnn.MaxPool2d(fm1, pooling_size=2)
-        fm2_ = cnn.MaxPool2d(fm2, pooling_size=2)
-        fm3_ = cnn.MaxPool2d(fm3, pooling_size=2)
 
         """ convolutional-layer 2, feature-map shape: (11, 11)  """
-        fm4 = f.relu(cnn.Conv2d(fm0_, self.kernels[4].T.T))
-        fm5 = f.relu(cnn.Conv2d(fm1_, self.kernels[5].T.T))
-        fm6 = f.relu(cnn.Conv2d(fm2_, self.kernels[6].T.T))
-        fm7 = f.relu(cnn.Conv2d(fm3_, self.kernels[7].T.T))
-
-        fm8 = f.relu(cnn.Conv2d(fm0_, self.kernels[8].T.T))
-        fm9 = f.relu(cnn.Conv2d(fm1_, self.kernels[9].T.T))
-        fm10 = f.relu(cnn.Conv2d(fm2_, self.kernels[10].T.T))
-        fm11 = f.relu(cnn.Conv2d(fm3_, self.kernels[11].T.T))
+        fm2 = f.relu(cnn.Conv2d(fm0_, self.kernels[2]))
+        fm3 = f.relu(cnn.Conv2d(fm0_, self.kernels[3]))
+        fm4 = f.relu(cnn.Conv2d(fm1_, self.kernels[4]))
+        fm5 = f.relu(cnn.Conv2d(fm1_, self.kernels[5]))
 
         """ maxpool-layer 2 feature-map shape: (5, 5) """
+        fm2_ = cnn.MaxPool2d(fm2, pooling_size=2)
+        fm3_ = cnn.MaxPool2d(fm3, pooling_size=2)
         fm4_ = cnn.MaxPool2d(fm4, pooling_size=2)
         fm5_ = cnn.MaxPool2d(fm5, pooling_size=2)
-        fm6_ = cnn.MaxPool2d(fm6, pooling_size=2)
-        fm7_ = cnn.MaxPool2d(fm7, pooling_size=2)
 
-        fm8_ = cnn.MaxPool2d(fm8, pooling_size=2)
-        fm9_ = cnn.MaxPool2d(fm9, pooling_size=2)
-        fm10_ = cnn.MaxPool2d(fm10, pooling_size=2)
-        fm11_ = cnn.MaxPool2d(fm11, pooling_size=2)
-
-        feature_maps.extend([fm0, fm1, fm2, fm3, fm4, fm5, fm6, fm7, fm8, fm9, fm10, fm11]) 
-        max_feature_maps.extend([fm0_, fm1_, fm2_, fm3_, fm4_, fm5_, fm6_, fm7_, fm8_, fm9_, fm10_, fm11_])
+        feature_maps.extend([fm0, fm1, fm2, fm3, fm4, fm5]) 
+        max_feature_maps.extend([fm0_, fm1_, fm2_, fm3_, fm4_, fm5_])
 
         """ dense-layers input: 544, output 3 """
-        dense_in = cnn.flatten(max_feature_maps[4:])
-        dense_hidden = f.relu(cnn.Linear(self.weights[0], dense_in))
+        dense_in = cnn.flatten(max_feature_maps[2:])
+        dense_hidden = f.sigmoid(cnn.Linear(self.weights[0], dense_in))
         dense_hidden = cnn.DropOut(dense_hidden, chance=self.dropout_chance)
         dense_out = f.sigmoid(cnn.Linear(self.weights[1], dense_hidden))
 
@@ -80,92 +66,112 @@ class Model:
     def backward(self, prediction, target, parameters, lr=0.1):
         x, kernels, weights, feature_maps, max_feature_maps, dense_layers = parameters
 
-        feature_maps_maxpool_2 = max_feature_maps[4:12]
-        feature_maps_conv_2 = feature_maps[4:12]
-        feature_maps_maxpool_1 = max_feature_maps[0:4]
-        feature_maps_conv_1 = feature_maps[0:4]
+        feature_maps_maxpool_2 = max_feature_maps[2:]
+        feature_maps_conv_2 = feature_maps[2:]
+        feature_maps_maxpool_1 = max_feature_maps[:2]
+        feature_maps_conv_1 = feature_maps[:2]
 
-        kernels_conv_2 = kernels[4:11]
-        kernels_conv_1 = kernels[0:4]
+        kernels_conv_2 = kernels[2:]
+        kernels_conv_1 = kernels[:2]
 
         weight_out_delta = f.MSE(prediction, target, deriv=(True, f.sigmoid(dense_layers[2], deriv=True)))
 
         weight_hidden_loss = np.dot(weight_out_delta.T, weights[1])
-        weight_hidden_delta = weight_hidden_loss.T * f.relu(dense_layers[1], deriv=True)
+        weight_hidden_delta = weight_hidden_loss.T * f.sigmoid(dense_layers[1], deriv=True)
 
         ###########################################################################################################
 
-        # input feature-map of convolution
+        """ GRADIENTS FOR CONV-2 """
+
         conv_in = feature_maps_maxpool_1
+        conv_2_loss = np.dot(weight_hidden_delta.T, weights[0]).reshape(4, 5, 5)                                        
 
-        # loss based on prior delta
-        conv_2_loss = np.dot(weight_hidden_delta.T, weights[0]).reshape(8, 5, 5)
+        """ gradients for conv2-kernel 0 """
+        max_mask_2_0 = maxpoolBackward2d(feature_maps_conv_2[0], 2)
+        conv_2_loss_0 = conv_2_loss[0]
+        zero_pad = np.zeros(max_mask_2_0.shape)
+        conv_2_delta_0 = conv_2_loss_0.repeat(2, axis=0).repeat(2, axis=1)
+        zero_pad[:conv_2_delta_0.shape[0], :conv_2_delta_0.shape[0]] = conv_2_delta_0
+        conv_2_delta_0 = zero_pad
+        conv_2_delta_0 = (conv_2_delta_0 * max_mask_2_0) * f.relu(feature_maps_conv_2[0], deriv=True)
 
-        # backward maxpool (get 1 for every 'winning' index of maxpool operation, 0 for every 'losing')
-        winning_maxpool_values_2 = []
-        for i in range(len(feature_maps_conv_2)):
-            winning_maxpool_values_2.append(maxpoolBackward2d(feature_maps_conv_2[i], 2))
+        """ gradients for conv2-kernel 1 """
+        max_mask_2_1 = maxpoolBackward2d(feature_maps_conv_2[1], 2)
+        conv_2_loss_1 = conv_2_loss[1]
+        zero_pad = np.zeros(max_mask_2_1.shape)
+        conv_2_delta_1 = conv_2_loss_1.repeat(2, axis=0).repeat(2, axis=1)
+        zero_pad[:conv_2_delta_1.shape[0], :conv_2_delta_1.shape[1]] = conv_2_delta_1
+        conv_2_delta_1 = zero_pad
+        conv_2_delta_1 = (conv_2_delta_1 * max_mask_2_1) * f.relu(feature_maps_conv_2[1], deriv=True)
 
-        # rescale loss to size of pre-maxpool
-        conv_2_loss_ = []
-        for i in range(len(conv_2_loss)):
-            zero_pad = np.zeros(winning_maxpool_values_2[i].shape)
-            current_conv_2_loss = conv_2_loss[i].repeat(2, axis=0).repeat(2, axis=1)
-            zero_pad[:current_conv_2_loss.shape[0],:current_conv_2_loss.shape[0]] = current_conv_2_loss
-            current_conv_2_loss = zero_pad
+        """ gradients for conv2-kernel 2 """
+        max_mask_2_2 = maxpoolBackward2d(feature_maps_conv_2[2], 2)
+        conv_2_loss_2 = conv_2_loss[2]
+        zero_pad = np.zeros(max_mask_2_2.shape)
+        conv_2_delta_2 = conv_2_loss_2.repeat(2, axis=0).repeat(2, axis=1)
+        zero_pad[:conv_2_delta_2.shape[0], :conv_2_delta_2.shape[0]] = conv_2_delta_2
+        conv_2_delta_2 = zero_pad
+        conv_2_delta_2 = (conv_2_delta_2 * max_mask_2_2) * f.relu(feature_maps_conv_2[2], deriv=True)
 
-            current_conv_2_loss = (current_conv_2_loss * winning_maxpool_values_2[i]) * f.relu(feature_maps_conv_2[i])
+        """ gradients for conv2-kernel 3 """
+        max_mask_2_3 = maxpoolBackward2d(feature_maps_conv_2[3], 2)
+        conv_2_loss_3 = conv_2_loss[3]
+        zero_pad = np.zeros(max_mask_2_3.shape)
+        conv_2_delta_3 = conv_2_loss_3.repeat(2, axis=0).repeat(2, axis=1)
+        zero_pad[:conv_2_delta_3.shape[0], :conv_2_delta_3.shape[0]] = conv_2_delta_3
+        conv_2_delta_3 = zero_pad
+        conv_2_delta_3 = (conv_2_delta_3 * max_mask_2_3) * f.relu(feature_maps_conv_2[3], deriv=True)
 
-            conv_2_loss_.append(current_conv_2_loss)
-
-        part1_conv_2_loss = conv_2_loss_[:int(len(conv_2_loss_)/2)]
-        part2_conv_2_loss = conv_2_loss_[int(len(conv_2_loss_)/2):]
-
-        conv_2_delta = []
-        for i in range(len(conv_in)):
-            conv_2_delta.append(convolution2d(conv_in[i], part1_conv_2_loss[i].T.T))
-
-        for i in range(len(conv_in)):
-            conv_2_delta.append(convolution2d(conv_in[i], part2_conv_2_loss[i].T.T))
+        final_conv_2_delta_0 = convolution2d(conv_in[0], conv_2_delta_0)
+        final_conv_2_delta_1 = convolution2d(conv_in[0], conv_2_delta_1)
+        final_conv_2_delta_2 = convolution2d(conv_in[1], conv_2_delta_2)
+        final_conv_2_delta_3 = convolution2d(conv_in[1], conv_2_delta_3)
 
         ###########################################################################################################
 
-        # input feature-map of convolution
+        """ GRADIENTS FOR CONV-1 """
+
         conv_in = x
 
-        # loss based on prior delta
-        conv_1_loss = np.random.random((4, 13, 13))#np.dot(conv_2_delta.T, kernels_conv_2[0])
+        conv_1_loss_0_part_1 = convolution2d(np.pad(kernels_conv_2[0], 10, mode="constant"), conv_2_delta_0)
+        conv_1_loss_0_part_2 = convolution2d(np.pad(kernels_conv_2[1], 10, mode="constant"), conv_2_delta_1)
+        conv_1_loss_0 = conv_1_loss_0_part_1 + conv_1_loss_0_part_2
 
-        # backward maxpool (get 1 for every 'winning' index of maxpool operation, 0 for every 'losing')
-        winning_maxpool_values_1 = []
-        for i in range(len(feature_maps_conv_1)):
-            winning_maxpool_values_1.append(maxpoolBackward2d(feature_maps_conv_1[i], 2))
+        conv_1_loss_1_part_1 = convolution2d(np.pad(kernels_conv_2[2], 10, mode="constant"), conv_2_delta_2)
+        conv_1_loss_1_part_2 = convolution2d(np.pad(kernels_conv_2[3], 10, mode="constant"), conv_2_delta_3)
+        conv_1_loss_1 = conv_1_loss_1_part_1 + conv_1_loss_1_part_2
 
-        # rescale loss to size of pre-maxpool
-        conv_1_loss_ = []
-        for i in range(len(conv_1_loss)):
-            zero_pad = np.zeros(winning_maxpool_values_1[i].shape)
-            current_conv_1_loss = conv_1_loss[i].repeat(2, axis=0).repeat(2, axis=1)
-            zero_pad[:current_conv_1_loss.shape[0],:current_conv_1_loss.shape[0]] = current_conv_1_loss
-            current_conv_1_loss = zero_pad
+        """ gradients for conv1-kernel 0 """
+        max_mask_1_0 = maxpoolBackward2d(feature_maps_conv_1[0], 2)
+        zero_pad = np.zeros(max_mask_1_0.shape)
+        conv_1_delta_0 = conv_1_loss_0.repeat(2, axis=0).repeat(2, axis=1)
+        zero_pad[:conv_1_delta_0.shape[0], :conv_1_delta_0.shape[0]] = conv_1_delta_0
+        conv_1_delta_0 = zero_pad
+        conv_1_delta_0 = (conv_1_delta_0 * max_mask_1_0) * f.relu(feature_maps_conv_1[0], deriv=True)
 
-            current_conv_1_loss = (current_conv_1_loss * winning_maxpool_values_1[i]) * f.relu(feature_maps_conv_1[i])
-            conv_1_loss_.append(current_conv_1_loss)
+        """ gradients for conv1-kernel 1 """
+        max_mask_1_1 = maxpoolBackward2d(feature_maps_conv_1[1], 2)
+        zero_pad = np.zeros(max_mask_1_1.shape)
+        conv_1_delta_1 = conv_1_loss_1.repeat(2, axis=0).repeat(2, axis=1)
+        zero_pad[:conv_1_delta_1.shape[0], :conv_1_delta_1.shape[0]] = conv_1_delta_1
+        conv_1_delta_1 = zero_pad
+        conv_1_delta_1 = (conv_1_delta_1 * max_mask_1_1) * f.relu(feature_maps_conv_1[1], deriv=True)
 
-        conv_1_delta = []
-        for i in range(len(conv_1_loss_)):
-            conv_1_delta.append(convolution2d(conv_in, conv_1_loss_[i].T.T))
+        final_conv_1_delta_0 = convolution2d(conv_in, conv_1_delta_0)
+        final_conv_1_delta_1 = convolution2d(conv_in, conv_1_delta_1)
 
         #############################################################################################################
 
-        self.weights[0] -= lr * np.dot(dense_layers[0], weight_hidden_delta.T).T
-        self.weights[1] -= lr * np.dot(dense_layers[1], weight_out_delta.T).T
+        self.weights[0] += lr * np.dot(dense_layers[0], weight_hidden_delta.T).T
+        self.weights[1] += lr * np.dot(dense_layers[1], weight_out_delta.T).T
 
-        for i in range(4):
-            self.kernels[0:4][i] += lr * conv_1_delta[i]
+        self.kernels[0] += lr * final_conv_1_delta_0
+        self.kernels[1] += lr * final_conv_1_delta_1
 
-        for i in range(8):
-            self.kernels[4:12][i] += lr * conv_2_delta[i]
+        self.kernels[2] += lr * final_conv_2_delta_0
+        self.kernels[3] += lr * final_conv_2_delta_1
+        self.kernels[4] += lr * final_conv_2_delta_2
+        self.kernels[5] += lr * final_conv_2_delta_3
     
     def _gradient_clipping(self, matrix, theshold=2):
         for i in range(len(matrix)):
